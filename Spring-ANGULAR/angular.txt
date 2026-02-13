@@ -1,0 +1,12 @@
+npm install -g @angular/cli@15.2.7
+# to install angular
+
+
+ng v
+# to check version
+
+ng new demo-angular
+# to create new angular project
+
+ng s -o
+# to run
