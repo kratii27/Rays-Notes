@@ -1,0 +1,97 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven'
+        jdk 'jdk-11'
+    }
+    environment {
+        // Backend
+        APP_NAME = "ORSProject-10"
+        JAR_FILE = "target\\ORSProject-10-0.0.1-SNAPSHOT.jar"
+        BACKEND_DEST = "F:\\Devops\\jenkins-to-docker-p10\\ORSProject-10"
+        // Frontend
+        PROJECT_NAME = "orsproject10-ui"
+        FRONTEND_DEST = "F:\\Devops\\jenkins-to-docker-p10\\ORSProject10-UI"
+    }
+    stages {
+        
+        stage('Backend: Checkout Code') {
+            steps {
+                dir('backend') {
+                    git branch: 'main', url: 'https://github.com/kratii27/ORSProject-10.git'
+                }
+            }
+        }
+        stage('Backend: Build JAR') {
+            steps {
+                dir('backend') {
+                    bat 'mvn clean package -DskipTests'
+                }
+            }
+        }
+        stage('Backend: Copy JAR') {
+            steps {
+                bat """
+                    echo Copying JAR to destination...
+                    if not exist "%BACKEND_DEST%" mkdir "%BACKEND_DEST%"
+                    copy /Y "backend\\%JAR_FILE%" "%BACKEND_DEST%\\"
+                    echo JAR copied successfully!
+                """
+            }
+        }
+      
+        stage('Frontend: Clone Repository') {
+            steps {
+                dir('frontend') {
+                    git branch: 'main', url: 'https://github.com/kratii27/orsproject10-ui.git'
+                }
+            }
+        }
+        stage('Frontend: Install Dependencies') {
+            steps {
+                dir('frontend') {
+                    bat 'npm install'
+                }
+            }
+        }
+        stage('Frontend: Build Angular Project') {
+            steps {
+                dir('frontend') {
+                    bat "npx ng build --base-href /%PROJECT_NAME%/"
+                }
+            }
+        }
+        stage('Frontend: Copy dist Folder') {
+            steps {
+                bat """
+                    echo Copying dist to destination...
+                    if not exist "%FRONTEND_DEST%" mkdir "%FRONTEND_DEST%"
+                    if exist "%FRONTEND_DEST%\\%PROJECT_NAME%" (
+                        rmdir /s /q "%FRONTEND_DEST%\\%PROJECT_NAME%"
+                    )
+                    xcopy "frontend\\dist\\%PROJECT_NAME%" "%FRONTEND_DEST%\\%PROJECT_NAME%" /E /I /Y
+                    echo dist folder copied successfully!
+                """
+            }
+        }
+        
+        stage('Deploy Using Docker Compose') {
+            steps {
+                script {
+                    dir('F:\\Devops\\jenkins-to-docker-p10') {
+                        bat 'docker-compose down || docker-compose.exe down'
+                        bat 'docker-compose up -d --build || docker-compose.exe up -d --build'
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo '✅ Build, Copy & Docker Deploy SUCCESS!'
+        }
+        failure {
+            echo '❌ Build Failed!'
+        }
+    }
+}

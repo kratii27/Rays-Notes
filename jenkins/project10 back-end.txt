@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven'
+        jdk 'jdk-11'
+    }
+
+    environment {
+        APP_NAME = "ORSProject-10"
+        JAR_FILE = "target\\ORSProject-10-0.0.1-SNAPSHOT.jar"
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/kratii27/ORSProject-10.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                bat 'mvn clean package -DskipTests'
+            }
+        }
+
+       stage('Stop Old App') {
+    steps {
+        bat '''
+            echo Stopping old app...
+            netstat -ano | findstr :8080 >nul 2>&1
+            if %errorlevel% == 0 (
+                for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8080') do (
+                    taskkill /PID %%a /F
+                )
+                echo App stopped.
+            ) else (
+                echo No app running on port 8080, skipping.
+            )
+            exit 0
+        '''
+    }
+}
+
+        stage('Deploy') {
+    steps {
+        bat '''
+            echo Starting new app...
+            java -jar %JAR_FILE%
+        '''
+    }
+}
+    }
+
+    post {
+        success {
+            echo 'Build & Deployment SUCCESS ✅'
+        }
+        failure {
+            echo 'Build FAILED ❌'
+        }
+    }
+}
